@@ -85,3 +85,26 @@ test('editing an old version cannot silently overwrite refreshed data',async()=>
  const p=ui('admin.html');p.read("$('#editor').open=true;$('#editor').dataset.version='1'");p.context.Cloud.version=2;
  await assert.rejects(p.read('writeChange(()=>{throw Error("action must not run")})'),/其他人更新/);assert.equal(p.context.Cloud.version,2);
 });
+test('budget save stays open, refreshes version and allows saving the next group directly',async()=>{
+ const p=ui('admin.html');await p.read('openBudget(groups[0])');
+ p.context.Cloud.commit=async s=>{p.context.Cloud.version++;p.context.Cloud.current=clone(s);return clone(s)};
+ let inputs=[];p.context.document.querySelectorAll=selector=>selector==='[data-allocated]'?inputs:[];
+ const setInputs=(group,amount)=>{inputs=p.context.Cloud.current.budgets.filter(b=>b.group===group).map(b=>({dataset:{allocated:String(b.category)},value:String(b.category===1?amount:b.amount),disabled:false}))};
+ const first=baseline.catalog.groups[0],second=baseline.catalog.groups[1];setInputs(first,25000);
+ await p.nodes.get('budget-form').onsubmit({preventDefault(){}});
+ assert.equal(p.nodes.get('budget-dialog').open,true);assert.equal(p.nodes.get('budget-group').value,first);assert.equal(p.nodes.get('budget-dialog').dataset.version,'2');assert.equal(p.nodes.get('budget-dialog').dataset.dirty,'');
+ assert(p.nodes.get('budget-status').textContent.includes('已儲存'));
+ p.context.confirm=()=>{throw Error('Saved group must not prompt to discard changes')};p.context.nextGroup=second;p.read("$('#budget-group').value=nextGroup;$('#budget-group').onchange()");
+ setInputs(second,100);await p.nodes.get('budget-form').onsubmit({preventDefault(){}});
+ assert.equal(p.nodes.get('budget-dialog').open,true);assert.equal(p.nodes.get('budget-group').value,second);assert.equal(p.nodes.get('budget-dialog').dataset.version,'3');
+ assert.equal(p.context.Cloud.current.budgets.find(b=>b.group===first&&b.category===1).amount,25000);assert.equal(p.context.Cloud.current.budgets.find(b=>b.group===second&&b.category===1).amount,100);
+ assert.equal(p.nodes.get('budget-save').disabled,false);
+});
+test('failed budget save keeps dialog, draft inputs and dirty marker for correction',async()=>{
+ const p=ui('admin.html');await p.read('openBudget(groups[0])');const group=baseline.catalog.groups[0];
+ const inputs=p.context.Cloud.current.budgets.filter(b=>b.group===group).map(b=>({dataset:{allocated:String(b.category)},value:String(b.category===1?26000:b.amount),disabled:false}));
+ p.context.document.querySelectorAll=selector=>selector==='[data-allocated]'?inputs:[];
+ p.read("$('#budget-dialog').dataset.dirty='yes'");p.context.Cloud.commit=async()=>{throw Error('VERSION_CONFLICT')};
+ await p.nodes.get('budget-form').onsubmit({preventDefault(){}});
+ assert.equal(p.nodes.get('budget-dialog').open,true);assert.equal(p.nodes.get('budget-dialog').dataset.dirty,'yes');assert.equal(inputs[0].value,'26000');assert.equal(p.nodes.get('budget-error').textContent,'VERSION_CONFLICT');assert.equal(p.nodes.get('budget-status').textContent,'');assert.equal(p.nodes.get('budget-save').disabled,false);
+});
