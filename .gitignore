@@ -1,0 +1,15 @@
+node_modules/
+.npm-cache/
+.dependency-guides/
+.agents/
+dist/
+private-import/
+.env
+.env.*
+!.env.example
+*.xlsx
+*.csv
+*.log
+deploy-receipt.private.json
+scripts/port-mvp.py
+scripts/upgrade-reliability.py

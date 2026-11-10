@@ -1,0 +1,17 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),source=path.resolve(root,'..'),context={window:{}};
+vm.runInNewContext(fs.readFileSync(path.join(source,'data.js'),'utf8'),context);
+const seed=JSON.parse(JSON.stringify(context.window.SEED));
+if(!seed.source.startsWith('20261109_'))throw Error('Expected approved 11/09 Excel source.');
+const incurred=seed.records.reduce((n,r)=>n+Math.round(r.incurred*100),0)/100-seed.projectTotals.officeReclassifiedIncurred;
+const paid=seed.records.reduce((n,r)=>n+Math.round(r.reimbursed*100),0)/100-seed.projectTotals.officeReclassifiedReimbursed;
+if(incurred!==7465834||paid!==6371741||seed.records.length!==353)throw Error('Source reconciliation failed.');
+const catalog=Object.fromEntries(['source','sourceSha256','revision','groups','categories','defaultStartDates','projectTotals','budgetAudit'].map(k=>[k,seed[k]]));
+const state={records:seed.records,budgets:seed.budgets,startDates:seed.defaultStartDates,deletedRecords:[],sourceRevision:seed.revision};
+const quote=o=>"'"+JSON.stringify(o).replaceAll("'","''")+"'::jsonb";
+const sql=`-- Private initialization data. Do not commit or publish this file.\nbegin;\ninsert into expense_private.ledger(id,catalog,state) values(true,${quote(catalog)},${quote(state)});\n-- No ON CONFLICT: a second initialization must fail instead of overwriting live edits.\ncommit;\n`;
+fs.mkdirSync(path.join(root,'private-import'),{recursive:true});
+fs.writeFileSync(path.join(root,'private-import','initialize.sql'),sql);
+fs.writeFileSync(path.join(root,'private-import','baseline.json'),JSON.stringify({catalog,state},null,2));
+fs.writeFileSync(path.join(root,'private-import','receipt.json'),JSON.stringify({source:seed.source,sourceSha256:seed.sourceSha256,records:353,incurred,paid,sqlSha256:crypto.createHash('sha256').update(sql).digest('hex')},null,2));
+console.log('Private import prepared: 353 records; net incurred 7,465,834; net paid 6,371,741.');
