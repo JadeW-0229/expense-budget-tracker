@@ -8,6 +8,7 @@ const files=['README.md','AGENTS.md','.gitignore','package.json','package-lock.j
  'supabase/migrations/202611090001_expense_ledger.sql',
  'supabase/migrations/202611100001_audit_index.sql',
  'supabase/migrations/202611100002_request_status.sql',
+ 'supabase/migrations/202611100003_admin_provisioning.sql',
  'tests/cloud.test.cjs','tests/database.test.cjs','tests/synthetic-baseline.cjs'];
 const entries=files.map(name=>{const content=fs.readFileSync(path.join(root,name),'utf8');return {path:name,sha256:crypto.createHash('sha256').update(content).digest('hex'),bytes:Buffer.byteLength(content)}});
 fs.writeFileSync(path.join(root,'upload-manifest.json'),JSON.stringify({repository:'JadeW-0229/expense-budget-tracker',files:entries},null,2));

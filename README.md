@@ -40,6 +40,8 @@
 
 5. 將公開的 publishable/anon API key 設定到 `web/config.js`；如要沿用數字帳號別名，設定 `adminLoginEmail`。
 
+維護者也可將已確認的管理者電子郵件加入 `expense_private.approved_admin_emails`，該使用者完成電子郵件驗證後自動授權；未驗證或不在核准名單者不取得管理權限。
+
 `expense_private` 內的資料表啟用 RLS，且不授予匿名或一般登入使用者直接讀寫權限。公開查詢只經 `expense_snapshot()`；`expense_commit()` 必須是 allowlist 中的 Auth 使用者。每次成功寫入會保留修改前後稽核快照。
 
 禁止將 `service_role`、`sb_secret_`、資料庫密碼放進前端。正式版刻意不提供本機資料自動上傳，避免將測試修改帶入正式帳本。
@@ -56,7 +58,7 @@ npm run build
 
 輸出為 `dist/`，可部署到支援靜態網站的服務。正式庫未連線、公開金鑰未設定或初始化未完成時，頁面明確顯示錯誤，不顯示假資料。
 
-26項測試涵蓋PGlite真實PostgreSQL引擎上的權限、超支、回填日期、精度、付款、刪除、稽核及版本衝突，以及登入恢復、重試識別、舊資料遮蔽與台北日期。本機使用私密來源基準測試；GitHub CI 使用合成測試資料，不提交個人明細。
+27項測試涵蓋PGlite真實PostgreSQL引擎上的權限、超支、回填日期、精度、付款、刪除、稽核及版本衝突，以及登入恢復、重試識別、舊資料遮蔽與台北日期。本機使用私密來源基準測試；GitHub CI 使用合成測試資料，不提交個人明細。
 
 ## GitHub Pages
 

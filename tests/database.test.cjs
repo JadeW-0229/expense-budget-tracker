@@ -16,10 +16,11 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 function expense(overrides={}){return {id:'local-test',group:'師培',department:'師培',category:1,date:'2026-01-01',requester:'測試',purpose:'預算邊界測試',incurred:1000,reimbursed:0,...overrides}}
 before(async()=>{
  db=new PGlite();
- await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;insert into auth.users values('${adminId}'),('${otherId}');`);
+ await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;insert into auth.users(id) values('${adminId}'),('${otherId}');`);
  await db.exec(fs.readFileSync(path.join(root,'supabase/migrations/202611090001_expense_ledger.sql'),'utf8'));
  await db.exec(fs.readFileSync(path.join(root,'supabase/migrations/202611100001_audit_index.sql'),'utf8'));
  await db.exec(fs.readFileSync(path.join(root,'supabase/migrations/202611100002_request_status.sql'),'utf8'));
+ await db.exec(fs.readFileSync(path.join(root,'supabase/migrations/202611100003_admin_provisioning.sql'),'utf8'));
  const privateFile=path.join(root,'private-import/baseline.json');
  baseline=!process.env.EXPENSE_TEST_SYNTHETIC&&fs.existsSync(privateFile)?JSON.parse(fs.readFileSync(privateFile,'utf8')):require('./synthetic-baseline.cjs')();
  const q=x=>"'"+JSON.stringify(x).replaceAll("'","''")+"'::jsonb";
@@ -92,4 +93,11 @@ test('read-only polling does not update data date; replayed successful request i
  assert.equal((await db.query('select count(*)::int as n from expense_private.audit_log')).rows[0].n,1);
  const ack=await as('authenticated',adminId,()=>db.query('select public.expense_request_status($1::uuid) as data',[requestId]));
  assert.equal(ack.rows[0].data.committed,true);assert.equal(ack.rows[0].data.snapshot.version,2);
+});
+test('only approved and email-confirmed new users automatically receive management rights',async()=>{
+ const id='44444444-4444-4444-8444-444444444444';await db.query('insert into expense_private.approved_admin_emails values($1)',['approved@example.invalid']);
+ await db.query('insert into auth.users(id,email) values($1,$2)',[id,'approved@example.invalid']);
+ assert.equal((await as('authenticated',id,read)).canAdmin,false);
+ await db.query('update auth.users set email_confirmed_at=now() where id=$1',[id]);assert.equal((await as('authenticated',id,read)).canAdmin,true);
+ await db.query('update auth.users set email=$2 where id=$1',[id,'unapproved@example.invalid']);assert.equal((await as('authenticated',id,read)).canAdmin,false);
 });
