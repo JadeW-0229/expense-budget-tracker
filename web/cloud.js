@@ -168,7 +168,7 @@ export async function connectCloud() {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, lockAcquireTimeout: 10000 }
   });
   const anonymousClient = createClient(c.supabaseUrl, c.publishableKey, {
-    global: { fetch: safeFetch }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    global: { fetch: safeFetch }, auth: { storageKey: 'expense-budget-readonly', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
   const cloud = new ExpenseCloud(client, { anonymousClient });
   try { await cloud.deadline(client.auth.getSession()); } catch {}

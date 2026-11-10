@@ -1,4 +1,3 @@
-(function(root){
 'use strict';
 const SCHEMA=9,CORRECTION=9,cents=n=>Math.round((Number(n)+Number.EPSILON)*100),key=b=>b.group+'|'+b.category;
 const copy=o=>JSON.parse(JSON.stringify(o));
@@ -71,5 +70,4 @@ function reconcile(saved,seed){
 }
 function requiresCorrection(saved){return !!saved?.records&&(saved.correctionVersion||0)<CORRECTION}
 const api={SCHEMA,CORRECTION,requiresCorrection,cents,start,charge,spent,allocated,balance,matrixAudit,restoreGroup,prepare,check,validate,reconcile};
-if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.Ledger=api;
-})(typeof window!=='undefined'?window:globalThis);
+export default api;

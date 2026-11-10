@@ -58,7 +58,7 @@ function ui(file){
  const document={hidden:false,addEventListener(){},body:{dataset:file==='admin.html'?{mode:'admin'}:{},classList:{add(){},remove(){}}},querySelector:s=>get(s.slice(1)),querySelectorAll:()=>[]};
  const Cloud={catalog:clone(baseline.catalog),current:clone(baseline.state),version:1,updatedAt:'2026-11-09T16:30:00Z',canAdmin:file==='admin.html',async read(){return clone(this.current)},async commit(s){this.current=clone(s);return clone(s)}};
  const context={Cloud,SEED:{...clone(baseline.catalog),records:[],budgets:[]},document,console,structuredClone,location:{},navigator:{},setInterval(){},setTimeout(){},clearTimeout(){},addEventListener(){},confirm:()=>true,crypto:{randomUUID:()=>String(Math.random())}};context.window=context;vm.createContext(context);
- vm.runInContext(fs.readFileSync(path.join(root,'web/ledger.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(root,'web/app.js'),'utf8'),context);
+ vm.runInContext(fs.readFileSync(path.join(root,'web/ledger.js'),'utf8').replace('export default api;', 'window.Ledger=api;'),context);vm.runInContext(fs.readFileSync(path.join(root,'web/app.js'),'utf8'),context);
  return {context,nodes,read:s=>vm.runInContext(s,context)};
 }
 test('cloud Viewer and admin render the same net totals and keep group/dialog calculations',()=>{
