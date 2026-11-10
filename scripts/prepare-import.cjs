@@ -7,6 +7,8 @@ const incurred=seed.records.reduce((n,r)=>n+Math.round(r.incurred*100),0)/100-se
 const paid=seed.records.reduce((n,r)=>n+Math.round(r.reimbursed*100),0)/100-seed.projectTotals.officeReclassifiedReimbursed;
 if(incurred!==7465834||paid!==6371741||seed.records.length!==353)throw Error('Source reconciliation failed.');
 const catalog=Object.fromEntries(['source','sourceSha256','revision','groups','categories','defaultStartDates','projectTotals','budgetAudit'].map(k=>[k,seed[k]]));
+const categoryFile=path.join(root,'private-import/category-approved.json');
+if(fs.existsSync(categoryFile))Object.assign(catalog,JSON.parse(fs.readFileSync(categoryFile,'utf8')));
 const state={records:seed.records,budgets:seed.budgets,startDates:seed.defaultStartDates,deletedRecords:[],sourceRevision:seed.revision};
 const quote=o=>"'"+JSON.stringify(o).replaceAll("'","''")+"'::jsonb";
 const sql=`-- Private initialization data. Do not commit or publish this file.\nbegin;\ninsert into expense_private.ledger(id,catalog,state) values(true,${quote(catalog)},${quote(state)});\n-- No ON CONFLICT: a second initialization must fail instead of overwriting live edits.\ncommit;\n`;

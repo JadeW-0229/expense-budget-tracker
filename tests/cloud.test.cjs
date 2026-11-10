@@ -1,9 +1,9 @@
 const {test,before}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const root=path.resolve(__dirname,'..');let ExpenseCloud;
+const root=path.resolve(__dirname,'..');let ExpenseCloud,Pivot;
 const baseline=require('./synthetic-baseline.cjs')();
 const clone=x=>JSON.parse(JSON.stringify(x));
 const payload=(canAdmin=false,version=1)=>({catalog:clone(baseline.catalog),state:clone(baseline.state),version,canAdmin,updatedAt:'2026-11-09T16:30:00Z'});
-before(async()=>{({ExpenseCloud}=await import('../web/cloud.js'))});
+before(async()=>{({ExpenseCloud}=await import('../web/cloud.js'));({default:Pivot}=await import('../web/pivot.js'))});
 test('cloud data comes only from the RPC response, never a local ledger',async()=>{
  const client={rpc:async name=>{assert.equal(name,'expense_snapshot');return {data:payload(),error:null}}};
  const store=new ExpenseCloud(client);await store.read();assert.equal(store.canAdmin,false);assert.equal(store.current.records.length,353);
@@ -57,7 +57,7 @@ function ui(file){
  const get=id=>{assert(ids.has(id),id);if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',textContent:'',hidden:false,open:false,disabled:false,dataset:{},classList:{remove(){},toggle(){}},addEventListener(){},showModal(){this.open=true},close(){this.open=false},focus(){}});return nodes.get(id)};
  const document={hidden:false,addEventListener(){},body:{dataset:file==='admin.html'?{mode:'admin'}:{},classList:{add(){},remove(){}}},querySelector:s=>get(s.slice(1)),querySelectorAll:()=>[]};
  const Cloud={catalog:clone(baseline.catalog),current:clone(baseline.state),version:1,updatedAt:'2026-11-09T16:30:00Z',canAdmin:file==='admin.html',async read(){return clone(this.current)},async commit(s){this.current=clone(s);return clone(s)}};
- const context={Cloud,SEED:{...clone(baseline.catalog),records:[],budgets:[]},document,console,structuredClone,location:{},navigator:{},setInterval(){},setTimeout(){},clearTimeout(){},addEventListener(){},confirm:()=>true,crypto:{randomUUID:()=>String(Math.random())}};context.window=context;vm.createContext(context);
+ const context={Cloud,Pivot,SEED:{...clone(baseline.catalog),records:[],budgets:[]},document,console,structuredClone,location:{},navigator:{},setInterval(){},setTimeout(){},clearTimeout(){},addEventListener(){},confirm:()=>true,crypto:{randomUUID:()=>String(Math.random())}};context.window=context;vm.createContext(context);
  vm.runInContext(fs.readFileSync(path.join(root,'web/ledger.js'),'utf8').replace('export default api;', 'window.Ledger=api;'),context);vm.runInContext(fs.readFileSync(path.join(root,'web/app.js'),'utf8'),context);
  return {context,nodes,read:s=>vm.runInContext(s,context)};
 }
@@ -107,4 +107,16 @@ test('failed budget save keeps dialog, draft inputs and dirty marker for correct
  p.read("$('#budget-dialog').dataset.dirty='yes'");p.context.Cloud.commit=async()=>{throw Error('VERSION_CONFLICT')};
  await p.nodes.get('budget-form').onsubmit({preventDefault(){}});
  assert.equal(p.nodes.get('budget-dialog').open,true);assert.equal(p.nodes.get('budget-dialog').dataset.dirty,'yes');assert.equal(inputs[0].value,'26000');assert.equal(p.nodes.get('budget-error').textContent,'VERSION_CONFLICT');assert.equal(p.nodes.get('budget-status').textContent,'');assert.equal(p.nodes.get('budget-save').disabled,false);
+});
+test('pivot selections survive cloud refresh and do not change the ledger or update date',async()=>{
+ const p=ui('admin.html');const original=JSON.stringify(p.context.Cloud.current),date=p.nodes.get('data-updated-date').textContent;
+ p.read("pivotGroups=[groups[0]];pivotMetrics=['approved','pending'];renderPivot()");
+ assert(p.nodes.get('pivot-table').innerHTML.includes('核定金額'));assert(!p.nodes.get('pivot-table').innerHTML.includes('剩餘金額'));
+ await p.read('syncCloud(true)');assert.equal(p.read('pivotGroups.length'),1);assert.equal(p.read('pivotMetrics.length'),2);
+ assert.equal(JSON.stringify(p.context.Cloud.current),original);assert.equal(p.nodes.get('data-updated-date').textContent,date);
+ p.read("pivotGroups=[];pivotMetrics=[];renderPivot()");assert.equal(p.nodes.get('pivot-table').innerHTML,'');assert.equal(p.nodes.get('pivot-export').disabled,true);
+});
+test('cloud metadata refresh updates plan approvals without resetting pivot selections',async()=>{
+ const p=ui('admin.html');p.read("pivotGroups=[];pivotMetrics=['approved']");p.context.Cloud.catalog.categoryApproved['21']=400000;
+ await p.read('syncCloud(true)');assert.equal(p.read('currentPivot().rows.find(r=>r.category===21).total.approved'),40000000);assert.equal(p.read('pivotGroups.length'),0);assert.equal(p.read('pivotMetrics.length'),1);
 });

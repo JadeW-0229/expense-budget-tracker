@@ -13,3 +13,4 @@ private-import/
 deploy-receipt.private.json
 scripts/port-mvp.py
 scripts/upgrade-reliability.py
+scripts/add-pivot-ui.py

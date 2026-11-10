@@ -76,3 +76,12 @@ Private 儲存庫是否能使用 Pages 取決於帳號方案；不要自行改�
 Supabase的Free專案可能因7天低使用量被平台自動暫停；此狀態無法由網站前端自行解除。須到Supabase Dashboard恢復專案，或評估不受自動暫停影響的付費方案。本程式不擅自升級或產生額外保活排程費用。參考：[官方專案暫停規則](https://supabase.com/docs/guides/platform/free-project-pausing)。
 
 官方參考：[Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)、[資料庫函式](https://supabase.com/docs/guides/database/functions)、[密碼登入](https://supabase.com/docs/guides/auth/passwords)。
+
+
+## 管理端經費樞紐分析
+
+左側「經費樞紐分析」固定以21個費用項目為列。組別可自由勾選，顯示各組依累計起日起算的期末待核銷；金額欄可選核定、已核銷、期末待核銷合計及剩餘。勾選只控制顯示欄位，全計畫合計不受影響。支援固定標題列、固定首欄及匯出目前欄位CSV。
+
+核定為Excel業務費總覽各科目全計畫核定額，獨立一欄；已核銷為全期間淨額，文具紙張扣除轉列辦公室的3,900元。期末待核銷為各組預算減各組累計起日後已核銷，再跨組加總。剩餘＝全計畫核定－全期間已核銷－期末待核銷合計。例如權利使用費300,000－145,000－148,000＝7,000元。
+
+初次匯入前，可在來源工作簿位於預定本機路徑時執行 python scripts/extract-category-approved.py（需openpyxl），再執行 npm run prepare-import。擷取結果僅寫入private-import，不可上傳GitHub；現有雲端帳本禁止重新初始化。
